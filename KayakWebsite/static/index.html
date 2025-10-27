@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Kayak Tracker</title>
+  <style>
+    body { font-family: sans-serif; background: #eef3f7; padding: 20px; }
+    h1 { text-align: center; }
+    .kayak {
+      background: white;
+      padding: 15px;
+      margin: 10px auto;
+      border-radius: 10px;
+      max-width: 400px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    button { padding: 6px 12px; border: none; border-radius: 6px; cursor: pointer; }
+    .start { background: #4caf50; color: white; }
+    .stop { background: #f44336; color: white; }
+  </style>
+</head>
+<body>
+  <h1>🚣 Kayak Tracker</h1>
+  <div id="kayaks"></div>
+  <script type="module">
+      async function fetchKayaks() {
+    const res = await fetch("/kayaks");
+    const kayaks = await res.json();
+    const container = document.getElementById("kayaks");
+    container.innerHTML = "";
+
+    for (const [id, data] of Object.entries(kayaks)) {
+        const div = document.createElement("div");
+        div.className = "kayak";
+
+        if (data && data.active) {
+            const elapsed = getElapsedTime(data.start_time);
+            div.innerHTML = `
+                <div>
+                    <b>Kayak ${id}</b><br>
+                    ${data.user}<br>
+                    <small>Out for ${elapsed}</small>
+                </div>
+                <button class="stop">Stop</button>
+            `;
+            div.querySelector("button")?.addEventListener("click", () => stopKayak(parseInt(id)));
+        } else {
+            div.innerHTML = `
+                <div>
+                    <b>Kayak ${id}</b><br>
+                    <small>Available</small>
+                </div>
+                <button class="start">Start</button>
+            `;
+            div.querySelector("button")?.addEventListener("click", () => startKayak(parseInt(id)));
+        }
+
+        container.appendChild(div);
+    }
+}
+
+function getElapsedTime(startTime) {
+    const start = new Date(startTime);
+    const diff = Date.now() - start.getTime();
+    const minutes = Math.floor(diff / 60000);
+    const seconds = Math.floor((diff % 60000) / 1000);
+    return `${minutes}m ${seconds}s`;
+}
+
+async function startKayak(id) {
+    const user = prompt("Who's taking this kayak?");
+    if (!user) return;
+    await fetch(`/start?kayak_id=${id}&user=${encodeURIComponent(user)}`, { method: "POST" });
+    await fetchKayaks();
+}
+
+async function stopKayak(id) {
+    await fetch(`/stop?kayak_id=${id}`, { method: "POST" });
+    await fetchKayaks();
+}
+
+// Refresh every second for live timers
+fetchKayaks();
+setInterval(fetchKayaks, 1000);
+  </script>
+</body>
+</html>
